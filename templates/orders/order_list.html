@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Orders · Tamil Kudil Café{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">CASHIER WORKSPACE</p><h1>{% if selected_status == "ALL" %}All orders{% else %}{{ selected_status|title }} orders{% endif %}</h1><p class="muted">See every dine-in and takeaway order, including completed orders.</p></div>
+  <div class="heading-actions"><a class="button" href="{% url 'orders:create' %}">+ Start an order</a></div>
+</section>
+<nav class="order-status-filters" aria-label="Filter orders by status">
+  <a class="order-status-filter{% if selected_status == 'ALL' %} selected{% endif %}" href="{% url 'orders:list' %}">All <span>{{ status_counts.ALL }}</span></a>
+  <a class="order-status-filter{% if selected_status == 'OPEN' %} selected{% endif %}" href="?status=OPEN">Open <span>{{ status_counts.OPEN }}</span></a>
+  <a class="order-status-filter{% if selected_status == 'COMPLETED' %} selected{% endif %}" href="?status=COMPLETED">Completed <span>{{ status_counts.COMPLETED }}</span></a>
+  <a class="order-status-filter{% if selected_status == 'CANCELLED' %} selected{% endif %}" href="?status=CANCELLED">Cancelled <span>{{ status_counts.CANCELLED }}</span></a>
+</nav>
+<section class="orders-list" aria-label="{{ selected_status|title }} orders">
+  {% for order in orders %}<a class="order-row" href="{% url 'orders:detail' order.pk %}">
+    <div class="order-reference"><span class="order-state status-{{ order.status|lower }}">{{ order.get_status_display }}</span><strong>#{{ order.public_reference|stringformat:"s"|slice:":8" }}</strong></div>
+    <div class="order-meta"><strong>{{ order.get_order_type_display }}</strong><span>{% if order.table %}Table {{ order.table.table_number }}{% elif order.order_type == "TAKEAWAY" %}Takeaway{% else %}Table not assigned{% endif %}</span><span>{{ order.created_at|date:"d M, g:i A" }}</span></div>
+    <div class="order-total"><span>{{ order.items.all|length }} line{{ order.items.all|length|pluralize }}</span><strong>₹{{ order.subtotal_preview|floatformat:2 }}</strong><small>Subtotal preview</small></div>
+    <span class="order-arrow" aria-hidden="true">→</span>
+  </a>{% empty %}<div class="empty-state"><span class="empty-icon">＋</span><h3>{% if selected_status == "ALL" %}No orders yet{% else %}No {{ selected_status|lower }} orders{% endif %}</h3><p>New dine-in and takeaway orders will appear here as soon as they are saved.</p><a class="button" href="{% url 'orders:create' %}">Start an order</a></div>{% endfor %}
+</section>
+{% endblock %}

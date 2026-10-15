@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Review bill · Tamil Kudil Café{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'orders:detail' order.pk %}">← Back to order</a>
+<section class="page-heading billing-heading"><div><p class="eyebrow">BILLING REVIEW · ORDER #{{ order.public_reference|stringformat:"s"|slice:":8" }}</p><h1>Review bill</h1><p class="muted">{{ order.get_order_type_display }}{% if order.table %} · Table {{ order.table.table_number }}{% endif %}</p></div></section>
+<div class="billing-review-layout"><section class="billing-lines panel">
+  <h2>Order items</h2>
+  {% for line in lines %}<div class="billing-line"><div><strong>{{ line.item_name_snapshot }}</strong><small>{{ line.quantity }} × ₹{{ line.unit_price|floatformat:2 }}</small>{% if line.notes %}<small>Note: {{ line.notes }}</small>{% endif %}</div><strong>₹{{ line.line_subtotal|floatformat:2 }}</strong></div>{% empty %}<div class="cart-empty"><strong>No items to bill yet</strong><p>Go back and add at least one item.</p></div>{% endfor %}
+  <div class="billing-subtotal"><span>Subtotal</span><strong>₹{{ subtotal|floatformat:2 }}</strong></div>
+</section>
+<aside class="billing-action-panel panel"><p class="eyebrow">FINALIZE BILL</p><h2>Confirm the amount</h2><p class="muted">The server recalculates the subtotal from the saved order. Discounts must be between ₹0 and the subtotal.</p>
+  {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+  <form method="post">{% csrf_token %}
+    <div class="field"><label for="{{ form.discount_amount.id_for_label }}">{{ form.discount_amount.label }}</label>{{ form.discount_amount }}{% for error in form.discount_amount.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>
+    <div class="field receipt-size-field"><label for="receipt-width-before-finalize">Thermal paper width</label><select id="receipt-width-before-finalize" data-receipt-width><option value="80">80 mm</option><option value="58">57 / 58 mm</option></select><small>Choose the roll loaded in your printer. The bill opens in the print dialog after finalizing.</small></div>
+    <div class="billing-preview-row"><span>Order subtotal</span><strong>₹{{ subtotal|floatformat:2 }}</strong></div><div class="billing-preview-row"><span>Discount preview</span><strong>−₹{{ discount_preview|floatformat:2 }}</strong></div><div class="billing-total"><span>Menu price after discount</span><strong>₹{{ amount_due_preview|floatformat:2 }}</strong></div>
+    {% if tax_setup_ready %}<p class="tax-notice">GST profile and item classifications are configured. The final amount will be calculated from saved tax settings.</p>{% else %}<p class="tax-notice">GST billing is locked. Your accountant must confirm the café’s GST treatment and rates, and each menu item must have an active tax classification before a bill can be issued.</p>{% endif %}
+    <button class="button full-width" type="submit" {% if not lines or not tax_setup_ready %}disabled{% endif %}>Finalize bill</button>
+  </form>
+</aside></div>
+{% endblock %}

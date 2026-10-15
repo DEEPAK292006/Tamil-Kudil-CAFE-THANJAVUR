@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Start order · Tamil Kudil Café{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'orders:list' %}">← Back to open orders</a>
+<section class="form-panel order-start-panel"><p class="eyebrow">CASHIER WORKSPACE</p><h1>Start an order</h1><p class="muted">Choose dine-in or takeaway. You can assign a dine-in table now or leave it unassigned until later.</p>
+  <form method="post" novalidate>{% csrf_token %}{% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="required">*</span>{% endif %}</label>{{ field }}{% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}</div>{% endfor %}
+    <div class="form-actions"><a class="button button-secondary" href="{% url 'orders:list' %}">Cancel</a><button class="button" type="submit">Start order</button></div>
+  </form>
+</section>
+{% endblock %}

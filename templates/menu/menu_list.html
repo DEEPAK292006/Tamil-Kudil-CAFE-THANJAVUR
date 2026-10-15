@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Menu · Tamil Kudil Café{% endblock %}
+{% block content %}
+<section class="menu-masthead">
+  <div class="menu-masthead-copy">
+    <p class="eyebrow">TAMIL KUDIL CAFÉ <span class="eyebrow-divider">/</span> THANJAVUR</p>
+    <h1>Good food, rooted in tradition.</h1>
+    <p>Traditional South Indian flavours, made for the everyday table.</p>
+  </div>
+  <div class="menu-sign" aria-label="Eat Traditional · Live Healthy">
+    <span class="menu-sign-mark" aria-hidden="true">TK</span>
+    <span>Eat Traditional</span><span class="menu-sign-dot" aria-hidden="true">·</span><span>Live Healthy</span>
+  </div>
+  {% if can_manage_menu %}<div class="menu-manage-actions"><a class="button button-outline-light" href="{% url 'menu:category_create' %}">Add category</a><a class="button button-light" href="{% url 'menu:item_create' %}"><span aria-hidden="true">＋</span> Add menu item</a></div>{% endif %}
+</section>
+
+<section class="menu-tools" aria-label="Find a menu item">
+  <form class="menu-search" method="get" role="search">
+    <label class="sr-only" for="menu-search">Search menu items</label>
+    <span class="search-symbol" aria-hidden="true">⌕</span>
+    <input id="menu-search" name="q" value="{{ query }}" type="search" placeholder="Search tea, sundal, paniyaram…">
+    {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}">{% endif %}
+    <button class="button" type="submit">Search menu</button>
+  </form>
+  <nav class="menu-category-filters" aria-label="Filter by category">
+    <a class="menu-filter-pill {% if not selected_category %}selected{% endif %}" href="{% url 'menu:list' %}{% if query %}?q={{ query|urlencode }}{% endif %}">All sections</a>
+    {% for category in categories %}<a class="menu-filter-pill {% if selected_category == category.pk|stringformat:'s' %}selected{% endif %}" href="?category={{ category.pk }}{% if query %}&q={{ query|urlencode }}{% endif %}">{{ category.name }}</a>{% endfor %}
+    {% if query or selected_category %}<a class="menu-clear-filter" href="{% url 'menu:list' %}">Clear filters</a>{% endif %}
+  </nav>
+</section>
+
+{% regroup items by category as category_groups %}
+<section class="menu-catalog" aria-label="Menu categories">
+  {% for group in category_groups %}
+  <article class="menu-category-card {% cycle 'category-leaf' 'category-wood' %}">
+    <header class="menu-category-heading">
+      <span class="category-number">{{ forloop.counter|stringformat:"02d" }}</span>
+      <div class="category-title-wrap"><p>FROM OUR KITCHEN</p><h2>{{ group.grouper.name }}</h2></div>
+      <span class="category-count">{{ group.list|length }} item{{ group.list|length|pluralize }}</span>
+    </header>
+    <div class="menu-entry-list">
+      {% for item in group.list %}<article class="menu-entry {% if not item.is_available %}menu-entry-unavailable{% endif %}">
+        <div class="menu-entry-copy"><h3>{{ item.name }}{% if not item.is_available %}<span class="availability-badge">Unavailable</span>{% endif %}</h3>{% if item.description %}<p>{{ item.description }}</p>{% endif %}</div>
+        <strong class="menu-entry-price">₹{{ item.price|floatformat:2 }}</strong>
+        {% if can_manage_menu %}<div class="menu-entry-actions"><a class="menu-action-link" href="{% url 'menu:item_edit' item.pk %}">Edit</a><form method="post" action="{% url 'menu:item_availability' item.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="menu-action-link" type="submit">{% if item.is_available %}Mark unavailable{% else %}Make available{% endif %}</button></form></div>{% endif %}
+      </article>{% endfor %}
+    </div>
+    <span class="category-bottom-rule" aria-hidden="true"></span>
+  </article>
+  {% empty %}<div class="menu-empty-state"><span class="menu-empty-mark" aria-hidden="true">✳</span><h2>No dishes found</h2><p>Try a different search or choose another category.</p>{% if query or selected_category %}<a class="button button-secondary" href="{% url 'menu:list' %}">Show the full menu</a>{% elif can_manage_menu %}<a class="button" href="{% url 'menu:item_create' %}">Add your first menu item</a>{% endif %}</div>{% endfor %}
+</section>
+
+{% if can_manage_menu and inactive_categories %}<details class="inactive-category-tools"><summary>Manage inactive categories <span>({{ inactive_categories|length }})</span></summary><div class="inactive-category-list">{% for category in inactive_categories %}<div><span>{{ category.name }}</span><form method="post" action="{% url 'menu:category_toggle' category.pk %}">{% csrf_token %}<button class="menu-action-link" type="submit">Activate category</button></form></div>{% endfor %}</div></details>{% endif %}
+{% endblock %}

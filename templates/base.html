@@ -1,0 +1,41 @@
+{% load static %}
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f32">
+  <title>{% block title %}Tamil Kudil Café{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'menu/pos.css' %}">
+  <link rel="stylesheet" href="{% static 'menu/cafe-theme.css' %}">
+</head>
+<body {% block body_attrs %}{% endblock %}>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}" aria-label="Tamil Kudil Café dashboard">
+      <span class="brand-mark" aria-hidden="true">TK</span>
+      <span class="brand-copy"><strong>Tamil Kudil</strong><small>CAFÉ · THANJAVUR</small></span>
+    </a>
+    {% if user.is_authenticated %}
+    <nav class="main-nav" aria-label="Main navigation">
+      <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}" href="{% url 'dashboard' %}">Overview</a>
+      <a class="nav-link {% if request.resolver_match.namespace == 'orders' %}is-active{% endif %}" href="{% url 'orders:list' %}">Orders</a>
+      <a class="nav-link {% if request.resolver_match.namespace == 'dining' %}is-active{% endif %}" href="{% url 'dining:table_list' %}">Tables</a>
+      <a class="nav-link {% if request.resolver_match.namespace == 'menu' %}is-active{% endif %}" href="{% url 'menu:list' %}">Menu</a>
+    </nav>
+    <div class="account-tools">
+      <span class="account-avatar" aria-hidden="true">{{ user.display_name|default:user.username|slice:":1"|upper }}</span>
+      <span class="user-label">{{ user.display_name|default:user.username }}</span>
+      <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}<button class="nav-button" type="submit">Sign out</button></form>
+    </div>
+    {% else %}
+    <a class="nav-button sign-in-link" href="{% url 'login' %}">Staff sign in</a>
+    {% endif %}
+  </header>
+  <main class="shell">
+    {% if messages %}<div class="messages" role="status" aria-live="polite">{% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="footer"><span>Eat Traditional · Live Healthy</span><span>Tamil Kudil Café · Thanjavur</span></footer>
+  <script src="{% static 'orders/pos.js' %}" defer></script>
+</body>
+</html>

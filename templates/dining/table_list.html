@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Tables · Tamil Kudil Café{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">DINING ROOM</p><h1>Table management</h1><p class="muted">See what is available, reserved, or serving an active dine-in order.</p></div>
+  {% if can_manage_tables %}<div class="heading-actions"><a class="button" href="{% url 'dining:table_create' %}">+ Add table</a></div>{% endif %}
+</section>
+<div class="table-legend" aria-label="Table status legend"><span><i class="legend-dot available-dot"></i> Available</span><span><i class="legend-dot reserved-dot"></i> Reserved</span><span><i class="legend-dot occupied-dot"></i> Occupied</span></div>
+<section class="table-grid" aria-label="Restaurant tables">
+  {% for table in tables %}<article class="table-card status-{{ table.current_status|lower }} {% if not table.is_active %}table-inactive{% endif %}">
+    <div class="table-card-heading"><div><p class="eyebrow">TABLE</p><h2>{{ table.table_number }}</h2></div><span class="table-status"><i class="legend-dot {{ table.current_status|lower }}-dot"></i>{{ table.current_status|title }}</span></div>
+    <p class="capacity">Seats up to {{ table.capacity }}{% if table.capacity == 1 %} guest{% else %} guests{% endif %}</p>
+    {% if not table.is_active %}<p class="table-note">Inactive · not available for seating</p>
+    {% elif table.active_order %}<div class="active-order"><span>Active order</span><strong>{{ table.active_order.public_reference|stringformat:"s"|slice:":8" }}</strong><small>Opened {{ table.active_order.created_at|date:"g:i A" }}</small></div>
+    {% else %}<p class="table-note">{% if table.current_status == "RESERVED" %}Held for a reservation{% else %}Ready for the next party{% endif %}</p>{% endif %}
+    {% if table.is_active and not table.active_order %}<div class="table-actions">
+      {% if table.current_status == "RESERVED" %}<form method="post" action="{% url 'dining:table_reservation_toggle' table.pk %}">{% csrf_token %}<input type="hidden" name="action" value="release"><button class="button button-secondary" type="submit">Release reservation</button></form>
+      {% else %}<form method="post" action="{% url 'dining:table_reservation_toggle' table.pk %}">{% csrf_token %}<input type="hidden" name="action" value="reserve"><button class="button button-secondary" type="submit">Mark reserved</button></form>{% endif %}
+      {% if table.current_status == "AVAILABLE" and assignable_orders %}<form method="post" action="{% url 'dining:table_assign_order' table.pk %}" class="assign-form">{% csrf_token %}<label class="sr-only" for="order-{{ table.pk }}">Assign open order to table {{ table.table_number }}</label><select id="order-{{ table.pk }}" name="order_id" required><option value="">Assign open order…</option>{% for order in assignable_orders %}<option value="{{ order.pk }}">{{ order.public_reference|stringformat:"s"|slice:":8" }} · {{ order.created_at|date:"g:i A" }}</option>{% endfor %}</select><button class="button" type="submit">Assign</button></form>{% endif %}
+    </div>{% elif table.active_order %}<p class="table-note">The table is released when its active order is completed or cancelled.</p>{% endif %}
+    {% if can_manage_tables %}<a class="table-edit-link" href="{% url 'dining:table_edit' table.pk %}">Edit table settings</a>{% endif %}
+  </article>{% empty %}<div class="empty-state"><span class="empty-icon">⌂</span><h3>No tables have been added</h3><p>Create the restaurant’s tables to start assigning dine-in orders.</p>{% if can_manage_tables %}<a class="button" href="{% url 'dining:table_create' %}">Add the first table</a>{% endif %}</div>{% endfor %}
+</section>
+{% endblock %}

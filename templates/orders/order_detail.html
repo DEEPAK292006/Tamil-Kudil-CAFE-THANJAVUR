@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ order.public_reference|stringformat:"s"|slice:":8" }} · Tamil Kudil Café{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'orders:list' %}">← Open orders</a>
+<section class="page-heading order-heading">
+  <div><p class="eyebrow">{{ order.get_order_type_display|upper }} · {{ order.created_at|date:"d M Y, g:i A" }}</p><h1>Order #{{ order.public_reference|stringformat:"s"|slice:":8" }}</h1><p class="muted">{% if order.table %}Table {{ order.table.table_number }}{% else %}Dine-in table not assigned{% endif %} · {{ order.get_status_display }}</p></div>
+  {% if order.status == "OPEN" %}<div class="order-heading-actions">{% if lines %}<a class="button" href="{% url 'billing:finalize_order' order.pk %}">Review bill</a>{% endif %}<form method="post" action="{% url 'orders:cancel' order.pk %}" data-confirm="Cancel this open order? Its table will become available again.">{% csrf_token %}<button class="button button-danger" type="submit">Cancel order</button></form></div>{% endif %}
+</section>
+{% if order.status != "OPEN" %}<div class="message">This order is {{ order.get_status_display|lower }} and can no longer be edited.</div>{% endif %}
+<div class="pos-layout">
+  <section class="pos-menu-panel">
+    <div class="section-title"><div><p class="eyebrow">ADD ITEMS</p><h2>Menu</h2></div></div>
+    <form method="get" class="search pos-search" role="search"><label class="sr-only" for="pos-search">Search menu items</label><input id="pos-search" type="search" name="q" value="{{ query }}" placeholder="Search items"><button class="button" type="submit">Search</button></form>
+    <div class="category-pills"><a class="category-pill {% if not selected_category %}selected{% endif %}" href="{% url 'orders:detail' order.pk %}">All</a>{% for category in categories %}<a class="category-pill {% if selected_category == category.pk|stringformat:'s' %}selected{% endif %}" href="?category={{ category.pk }}{% if query %}&q={{ query|urlencode }}{% endif %}">{{ category.name }}</a>{% endfor %}</div>
+    <div class="pos-item-grid">
+      {% for menu_item in menu_items %}<article class="pos-item-card"><span class="category-chip">{{ menu_item.category.name }}</span><h3>{{ menu_item.name }}</h3>{% if menu_item.description %}<p>{{ menu_item.description }}</p>{% endif %}<strong class="price">₹{{ menu_item.price|floatformat:2 }}</strong>
+        {% if order.status == "OPEN" %}<form method="post" action="{% url 'orders:item_add' order.pk menu_item.pk %}" class="add-item-form">{% csrf_token %}<label>Qty <input type="number" name="quantity" min="1" max="99" value="1" required></label><input type="text" name="notes" maxlength="300" placeholder="Item note (optional)" aria-label="Optional kitchen note for {{ menu_item.name }}"><button class="button" type="submit">Add</button></form>{% endif %}
+      </article>{% empty %}<div class="empty-state"><h3>No available items found</h3><p>Change the search or category to continue.</p></div>{% endfor %}
+    </div>
+  </section>
+  <aside class="cart-panel" aria-label="Order cart">
+    <div class="cart-heading"><div><p class="eyebrow">SAVED ORDER</p><h2>Order items</h2></div><span class="count">{{ lines|length }} line{{ lines|length|pluralize }}</span></div>
+    {% for line in lines %}<article class="cart-line"><div class="cart-line-title"><strong>{{ line.item_name_snapshot }}</strong><span>₹{{ line.unit_price|floatformat:2 }} each</span>{% if line.notes %}<small>Note: {{ line.notes }}</small>{% endif %}</div>
+      <div class="cart-line-controls">{% if order.status == "OPEN" %}<form method="post" action="{% url 'orders:item_quantity' order.pk line.pk %}" class="quantity-form">{% csrf_token %}<label class="sr-only" for="qty-{{ line.pk }}">Quantity for {{ line.item_name_snapshot }}</label><input id="qty-{{ line.pk }}" type="number" name="quantity" min="1" max="99" value="{{ line.quantity }}" required><button class="button button-small" type="submit">Update</button></form><form method="post" action="{% url 'orders:item_remove' order.pk line.pk %}" data-confirm="Remove {{ line.item_name_snapshot }} from this order?">{% csrf_token %}<button class="text-button remove-button" type="submit">Remove</button></form>{% else %}<span>Qty {{ line.quantity }}</span>{% endif %}<strong>₹{{ line.line_subtotal|floatformat:2 }}</strong></div>
+    </article>{% empty %}<div class="cart-empty"><span>＋</span><strong>Your order is empty</strong><p>Choose dishes from the menu to add them here.</p></div>{% endfor %}
+    <div class="cart-summary"><div><span>Subtotal preview</span><strong>₹{{ subtotal|floatformat:2 }}</strong></div><small>Tax, discounts, and final totals are calculated during billing.</small></div>
+    {% if order.status == "OPEN" %}<form method="post" action="{% url 'orders:notes_save' order.pk %}" class="order-notes-form">{% csrf_token %}<label for="id_notes">Order note</label>{{ notes_form.notes }}<button class="button button-secondary" type="submit">Save note</button></form>{% elif order.notes %}<p class="saved-note"><strong>Order note:</strong> {{ order.notes }}</p>{% endif %}
+    {% if order.status == "OPEN" and not order.items.exists %}<p class="cart-hint">This order is saved as a draft until you add items.</p>{% endif %}
+  </aside>
+</div>
+{% endblock %}
