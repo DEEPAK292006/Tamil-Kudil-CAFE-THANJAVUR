@@ -11,11 +11,12 @@ from apps.menu.models import MenuCategory, MenuItem
 
 from .forms import AddOrderItemForm, OrderNotesForm, QuantityForm, StartOrderForm
 from .models import Order, OrderItem
-from .permissions import order_staff_required
+from .permissions import order_manager_required, order_staff_required
 from .services import (
     add_menu_item_to_order,
     cancel_open_order,
     create_open_order,
+    delete_order_without_bill,
     order_subtotal,
     remove_order_item,
     update_order_item_quantity,
@@ -38,11 +39,14 @@ def order_list(request):
     if selected_status not in valid_statuses | {"ALL"}:
         selected_status = "ALL"
 
-    orders = Order.objects.select_related("table", "opened_by").prefetch_related("items")
+    orders = Order.objects.select_related("table", "opened_by", "invoice").prefetch_related("items")
     if selected_status != "ALL":
         orders = orders.filter(status=selected_status)
     for order in orders:
         order.subtotal_preview = order_subtotal(order)
+        invoice = getattr(order, "invoice", None)
+        order.has_issued_invoice = bool(invoice and invoice.status == "ISSUED")
+        order.display_total = invoice.total_amount if order.has_issued_invoice else order.subtotal_preview
     status_counts = {
         "ALL": Order.objects.count(),
         **{value: Order.objects.filter(status=value).count() for value in valid_statuses},
@@ -78,7 +82,7 @@ def order_create(request):
 
 @order_staff_required
 def order_detail(request, pk):
-    order = get_object_or_404(Order.objects.select_related("table", "opened_by").prefetch_related("items__menu_item"), pk=pk)
+    order = get_object_or_404(Order.objects.select_related("table", "opened_by", "invoice").prefetch_related("items__menu_item"), pk=pk)
     categories = MenuCategory.objects.filter(is_active=True)
     query = request.GET.get("q", "").strip()
     selected_category = request.GET.get("category", "").strip()
@@ -89,10 +93,16 @@ def order_detail(request, pk):
         menu_items = menu_items.filter(Q(name__icontains=query) | Q(category__name__icontains=query))
     lines = list(order.items.all())
     subtotal = sum((line.line_subtotal for line in lines), Decimal("0.00"))
+    invoice = getattr(order, "invoice", None)
+    has_issued_invoice = bool(invoice and invoice.status == "ISSUED")
     return render(request, "orders/order_detail.html", {
         "order": order,
         "lines": lines,
         "subtotal": subtotal,
+        "display_total": invoice.total_amount if has_issued_invoice else subtotal,
+        "has_issued_invoice": has_issued_invoice,
+        "can_manage_orders": request.user.is_superuser or request.user.role in {"ADMIN", "MANAGER"},
+        "can_delete_order": (request.user.is_superuser or request.user.role in {"ADMIN", "MANAGER"}) and invoice is None,
         "categories": categories,
         "menu_items": menu_items,
         "query": query,
@@ -176,6 +186,18 @@ def order_cancel(request, pk):
         _handle_order_error(request, exc)
     else:
         messages.success(request, "Open order cancelled. Its dine-in table is available again.")
+    return redirect("orders:list")
+
+
+@order_manager_required
+@require_POST
+def order_delete(request, pk):
+    try:
+        reference = delete_order_without_bill(order_id=pk, actor=request.user)
+    except (Order.DoesNotExist, ValidationError) as exc:
+        _handle_order_error(request, exc)
+    else:
+        messages.success(request, f"Unbilled order {reference} was deleted.")
     return redirect("orders:list")
 
 

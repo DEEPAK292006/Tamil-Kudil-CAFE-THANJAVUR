@@ -5,7 +5,7 @@
   <div class="welcome-copy">
     <p class="eyebrow">CAFÉ OVERVIEW <span class="eyebrow-divider">/</span> {{ today|date:"l, j F Y" }}</p>
     <h1>Vanakkam, {{ user.display_name|default:user.username }}</h1>
-    <p>Your service at a glance. Everything here updates from today’s saved orders and bills.</p>
+    <p>Totals include all saved orders and issued bills.</p>
   </div>
   <div class="welcome-actions">
     <a class="button button-light" href="{% url 'orders:create' %}"><span aria-hidden="true">＋</span> Start an order</a>
@@ -14,9 +14,9 @@
   <span class="welcome-seal" aria-hidden="true"><span>TK</span><small>THANJAVUR</small></span>
 </section>
 
-<section class="dashboard-stats" aria-label="Today's café summary">
-  <article class="stat-card stat-orders"><div class="stat-topline"><span class="stat-icon" aria-hidden="true">↗</span><span class="stat-label">IN SERVICE</span></div><strong class="stat-value">{{ open_order_count }}</strong><span class="stat-caption">Open order{{ open_order_count|pluralize }}</span><a class="stat-link" href="{% url 'orders:list' %}">View orders <span aria-hidden="true">→</span></a></article>
-  <article class="stat-card"><div class="stat-topline"><span class="stat-icon" aria-hidden="true">₹</span><span class="stat-label">BILLED TODAY</span></div><strong class="stat-value">₹{{ sales_total|floatformat:2 }}</strong><span class="stat-caption">{{ sales_count }} issued bill{{ sales_count|pluralize }}</span><span class="stat-footnote">Finalized invoices only</span></article>
+<section class="dashboard-stats" aria-label="All-time cafe totals">
+  <article class="stat-card stat-orders"><div class="stat-topline"><span class="stat-icon" aria-hidden="true">↗</span><span class="stat-label">TOTAL ORDERS</span></div><strong class="stat-value">{{ order_count }}</strong><span class="stat-caption">{{ order_count }} saved · {{ completed_order_count }} completed · {{ open_order_count }} open · {{ cancelled_order_count }} cancelled</span><a class="stat-link" href="{% url 'orders:list' %}">View orders <span aria-hidden="true">→</span></a></article>
+  <article class="stat-card"><div class="stat-topline"><span class="stat-icon" aria-hidden="true">₹</span><span class="stat-label">BILLED TO DATE</span></div><strong class="stat-value">₹{{ billed_total|floatformat:2 }}</strong><span class="stat-caption">{{ issued_bill_count }} issued bill{{ issued_bill_count|pluralize }}</span><span class="stat-footnote">Total from saved bills</span></article>
   <article class="stat-card"><div class="stat-topline"><span class="stat-icon" aria-hidden="true">✳</span><span class="stat-label">READY TO SERVE</span></div><strong class="stat-value">{{ available_menu_count }}</strong><span class="stat-caption">Menu items · {{ active_category_count }} categories</span><a class="stat-link" href="{% url 'menu:list' %}">Browse menu <span aria-hidden="true">→</span></a></article>
   <article class="stat-card"><div class="stat-topline"><span class="stat-icon" aria-hidden="true">⌂</span><span class="stat-label">DINING ROOM</span></div><strong class="stat-value">{{ active_table_count }}</strong><span class="stat-caption">Active table{{ active_table_count|pluralize }}</span><a class="stat-link" href="{% url 'dining:table_list' %}">View tables <span aria-hidden="true">→</span></a></article>
 </section>
@@ -27,7 +27,7 @@
     {% for order in recent_orders %}<a class="dashboard-order-row" href="{% url 'orders:detail' order.pk %}">
       <span class="order-type-mark" aria-hidden="true">{% if order.order_type == "DINE_IN" %}⌂{% else %}↗{% endif %}</span>
       <span class="dashboard-order-main"><strong>Order #{{ order.public_reference|stringformat:"s"|slice:":8" }}</strong><small>{% if order.table %}Table {{ order.table.table_number }}{% else %}{{ order.get_order_type_display }}{% endif %} · {{ order.created_at|date:"g:i A" }}</small><small class="dashboard-order-state status-{{ order.status|lower }}">{% if order.status == "COMPLETED" %}Billed{% else %}{{ order.get_status_display }}{% endif %}</small></span>
-      <span class="dashboard-order-total">₹{{ order.subtotal_preview|floatformat:2 }}</span>
+      <span class="dashboard-order-total">₹{{ order.display_total|floatformat:2 }}</span>
       <span class="row-arrow" aria-hidden="true">→</span>
     </a>{% empty %}<div class="dashboard-empty"><span class="empty-leaf" aria-hidden="true">✳</span><strong>No orders yet</strong><p>New dine-in and takeaway orders will appear here as soon as they are saved.</p><a class="button" href="{% url 'orders:create' %}">Start the first order</a></div>{% endfor %}
   </section>

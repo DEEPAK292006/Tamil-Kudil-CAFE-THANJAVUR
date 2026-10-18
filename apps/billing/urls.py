@@ -7,4 +7,5 @@ app_name = "billing"
 urlpatterns = [
     path("orders/<int:order_id>/finalize/", views.finalize_order_view, name="finalize_order"),
     path("invoices/<int:pk>/", views.invoice_detail, name="invoice_detail"),
+    path("invoices/<int:pk>/void/", views.void_invoice_view, name="void_invoice"),
 ]

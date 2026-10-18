@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import BusinessTaxProfile, Invoice, InvoiceLine, Payment, TaxConfiguration
+from .models import BusinessTaxProfile, Invoice, InvoiceLine, TaxConfiguration
 
 
 @admin.register(TaxConfiguration)
@@ -21,6 +21,9 @@ class BusinessTaxProfileAdmin(admin.ModelAdmin):
         return False
 
 
-admin.site.register(Invoice)
+@admin.register(Invoice)
+class InvoiceAdmin(admin.ModelAdmin):
+    exclude = ("payment_status",)
+
+
 admin.site.register(InvoiceLine)
-admin.site.register(Payment)

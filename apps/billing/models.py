@@ -166,7 +166,7 @@ class Invoice(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             existing = type(self).objects.filter(pk=self.pk).first()
-            if existing and existing.status == self.Status.ISSUED:
+            if existing and existing.status in {self.Status.ISSUED, self.Status.VOID}:
                 protected_fields = (
                     "order_id", "invoice_number", "subtotal", "discount_amount", "taxable_amount",
                     "exempt_amount", "non_taxable_amount", "tax_mode_snapshot",
@@ -180,8 +180,8 @@ class Invoice(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.status == self.Status.ISSUED:
-            raise ValidationError("Issued bills cannot be deleted; use a controlled void or correction workflow.")
+        if self.status != self.Status.DRAFT:
+            raise ValidationError("Issued or voided bills cannot be deleted; preserve their financial history.")
         return super().delete(*args, **kwargs)
 
 
@@ -219,13 +219,13 @@ class InvoiceLine(models.Model):
         return f"{self.item_name_snapshot} x {self.quantity}"
 
     def save(self, *args, **kwargs):
-        if Invoice.objects.filter(pk=self.invoice_id, status=Invoice.Status.ISSUED).exists():
+        if Invoice.objects.filter(pk=self.invoice_id, status__in=(Invoice.Status.ISSUED, Invoice.Status.VOID)).exists():
             raise ValidationError("Lines on an issued invoice cannot be changed.")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.invoice.status == Invoice.Status.ISSUED:
-            raise ValidationError("Lines on an issued invoice cannot be removed.")
+        if self.invoice.status in {Invoice.Status.ISSUED, Invoice.Status.VOID}:
+            raise ValidationError("Lines on an issued or voided bill cannot be removed.")
         return super().delete(*args, **kwargs)
 
 

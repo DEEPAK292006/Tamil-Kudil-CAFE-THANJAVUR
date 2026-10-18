@@ -37,6 +37,32 @@ def _allocate_discount(lines, discount, subtotal):
     return shares
 
 
+@transaction.atomic
+def void_invoice(*, invoice_id, voided_by):
+    """Remove an issued bill from active totals while preserving its audit history."""
+    invoice = Invoice.objects.select_for_update().get(pk=invoice_id)
+    if invoice.status != Invoice.Status.ISSUED:
+        raise ValidationError("Only an issued bill can be removed from active totals.")
+
+    previous_status = invoice.status
+    Invoice.objects.filter(pk=invoice.pk, status=Invoice.Status.ISSUED).update(status=Invoice.Status.VOID)
+    invoice.status = Invoice.Status.VOID
+    AuditRecord.objects.create(
+        actor=voided_by,
+        action="invoice_voided",
+        object_type=Invoice._meta.label,
+        object_id=str(invoice.pk),
+        changes={
+            "invoice_number": invoice.invoice_number,
+            "total": str(invoice.total_amount),
+            "order_id": invoice.order_id,
+            "previous_status": previous_status,
+            "status": Invoice.Status.VOID,
+        },
+    )
+    return invoice
+
+
 def _tax_for_line(net_amount, config, *, interstate):
     """Return taxable base and tax components for an inclusive or exclusive menu price."""
     net_amount = _money(net_amount)

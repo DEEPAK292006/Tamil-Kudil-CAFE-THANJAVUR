@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -10,8 +11,8 @@ from apps.orders.services import order_subtotal
 
 from .forms import FinalizeInvoiceForm
 from .models import BusinessTaxProfile, Invoice
-from .permissions import billing_staff_required
-from .services import finalize_order
+from .permissions import billing_manager_required, billing_staff_required
+from .services import finalize_order, void_invoice
 
 
 @billing_staff_required
@@ -69,7 +70,7 @@ def finalize_order_view(request, order_id):
 @billing_staff_required
 def invoice_detail(request, pk):
     invoice = get_object_or_404(
-        Invoice.objects.select_related("order", "order__table", "issued_by").prefetch_related("lines", "payments"),
+        Invoice.objects.select_related("order", "order__table", "issued_by").prefetch_related("lines"),
         pk=pk,
     )
     tax_total = invoice.cgst_amount + invoice.sgst_amount + invoice.igst_amount
@@ -78,4 +79,18 @@ def invoice_detail(request, pk):
         "lines": invoice.lines.all(),
         "tax_total": tax_total,
         "auto_print": request.GET.get("print") == "1",
+        "can_void_invoice": request.user.is_superuser or request.user.role in {"ADMIN", "MANAGER"},
     })
+
+
+@require_POST
+@billing_manager_required
+def void_invoice_view(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk)
+    try:
+        void_invoice(invoice_id=invoice.pk, voided_by=request.user)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    else:
+        messages.success(request, f"Bill {invoice.invoice_number} was removed from active bill totals. Its record remains in history.")
+    return redirect("billing:invoice_detail", pk=invoice.pk)

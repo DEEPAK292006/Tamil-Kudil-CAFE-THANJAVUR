@@ -15,7 +15,7 @@
   {% for order in orders %}<a class="order-row" href="{% url 'orders:detail' order.pk %}">
     <div class="order-reference"><span class="order-state status-{{ order.status|lower }}">{{ order.get_status_display }}</span><strong>#{{ order.public_reference|stringformat:"s"|slice:":8" }}</strong></div>
     <div class="order-meta"><strong>{{ order.get_order_type_display }}</strong><span>{% if order.table %}Table {{ order.table.table_number }}{% elif order.order_type == "TAKEAWAY" %}Takeaway{% else %}Table not assigned{% endif %}</span><span>{{ order.created_at|date:"d M, g:i A" }}</span></div>
-    <div class="order-total"><span>{{ order.items.all|length }} line{{ order.items.all|length|pluralize }}</span><strong>₹{{ order.subtotal_preview|floatformat:2 }}</strong><small>Subtotal preview</small></div>
+    <div class="order-total"><span>{{ order.items.all|length }} line{{ order.items.all|length|pluralize }}</span><strong>₹{{ order.display_total|floatformat:2 }}</strong><small>{% if order.has_issued_invoice %}Final bill total{% else %}Subtotal preview{% endif %}</small></div>
     <span class="order-arrow" aria-hidden="true">→</span>
   </a>{% empty %}<div class="empty-state"><span class="empty-icon">＋</span><h3>{% if selected_status == "ALL" %}No orders yet{% else %}No {{ selected_status|lower }} orders{% endif %}</h3><p>New dine-in and takeaway orders will appear here as soon as they are saved.</p><a class="button" href="{% url 'orders:create' %}">Start an order</a></div>{% endfor %}
 </section>

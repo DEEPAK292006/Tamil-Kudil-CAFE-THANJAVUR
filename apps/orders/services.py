@@ -144,6 +144,39 @@ def cancel_open_order(*, order_id, actor):
     return order
 
 
+@transaction.atomic
+def delete_order_without_bill(*, order_id, actor):
+    """Delete an unbilled order while keeping a snapshot in the audit log."""
+    from apps.billing.models import Invoice
+
+    order = Order.objects.select_for_update().select_related("table").get(pk=order_id)
+    if Invoice.objects.select_for_update().filter(order_id=order.pk).exists():
+        raise ValidationError("This order has a bill. Its order and bill history are protected from deletion.")
+
+    lines = list(OrderItem.objects.select_for_update().filter(order=order).order_by("pk"))
+    order_snapshot = {
+        "public_reference": str(order.public_reference),
+        "order_type": order.order_type,
+        "status": order.status,
+        "table": order.table.table_number if order.table_id else None,
+        "subtotal": str(sum((line.line_subtotal for line in lines), Decimal("0.00"))),
+        "items": [
+            {"name": line.item_name_snapshot, "unit_price": str(line.unit_price), "quantity": line.quantity}
+            for line in lines
+        ],
+    }
+    AuditRecord.objects.create(
+        actor=actor,
+        action="order_deleted",
+        object_type=Order._meta.label,
+        object_id=str(order.pk),
+        changes=order_snapshot,
+    )
+    reference = str(order.public_reference)[:8]
+    order.delete()
+    return reference
+
+
 def order_subtotal(order):
     """Preview only; billing will perform authoritative invoice calculations in Step 9."""
     return sum((line.line_subtotal for line in order.items.all()), Decimal("0.00"))

@@ -33,6 +33,7 @@ def table_list(request):
             RestaurantTable.Status.RESERVED if table.status == RestaurantTable.Status.RESERVED else
             RestaurantTable.Status.AVAILABLE
         )
+        table.can_delete = not table.orders.exists() and not table.reservations.exists()
 
     assignable_orders = Order.objects.filter(
         order_type=Order.Type.DINE_IN,
@@ -55,6 +56,27 @@ def table_create(request):
 def table_edit(request, pk):
     table = get_object_or_404(RestaurantTable, pk=pk)
     return _table_form(request, table)
+
+
+@table_manager_required
+@require_POST
+def table_delete(request, pk):
+    with transaction.atomic():
+        table = get_object_or_404(RestaurantTable.objects.select_for_update(), pk=pk)
+        if table.orders.exists() or table.reservations.exists():
+            messages.error(request, "This table is linked to order or reservation history. Rename or deactivate it to keep that history.")
+            return redirect("dining:table_list")
+        label = table.table_number
+        AuditRecord.objects.create(
+            actor=request.user,
+            action="restaurant_table_deleted",
+            object_type=RestaurantTable._meta.label,
+            object_id=str(table.pk),
+            changes={"table_number": table.table_number, "capacity": table.capacity, "is_active": table.is_active},
+        )
+        table.delete()
+    messages.success(request, f"Table {label} deleted.")
+    return redirect("dining:table_list")
 
 
 def _table_form(request, table=None):
